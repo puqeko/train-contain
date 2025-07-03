@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_DB: nztrain
+      POSTGRES_USER: nztrain
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nztrain -d nztrain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  app:
+    build:
+      context: .
+      dockerfile: ContainerFile
+    privileged: true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "3000:80"
+    working_dir: /app
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: nztrain
+      PGPASSWORD: password
+    command: >
+      bash -c "
+        # Silence errors about Simple Form
+        rails generate simple_form:install --bootstrap &&
+
+        echo 'Setting up database...' &&
+        bundle exec rake db:create db:migrate &&
+
+        echo 'Seeding database with dummy data...' &&
+        bundle exec rake db:seed &&
+
+        echo 'Starting Rails server...' &&
+        bundle exec rails server -b 0.0.0.0 -p 80
+      "
+
+volumes:
+  postgres_data:
+  redis_data:

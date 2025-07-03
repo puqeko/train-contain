@@ -1,0 +1,3 @@
+[submodule "nztrain"]
+	path = nztrain
+	url = git@github.com:NZOI/nztrain.git

@@ -1,0 +1,45 @@
+# Temporary container for building dependancies
+FROM debian:buster AS builder
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
+       ca-certificates \
+       build-essential \
+       libcap-dev \
+       libsystemd-dev \
+       pkg-config \
+       git \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# Compile isolate for safe code execution
+FROM builder AS isolate
+RUN git clone https://github.com/ioi/isolate.git
+WORKDIR /isolate
+RUN git checkout -b build v2.1
+RUN make isolate
+
+
+# Compile isolock wrapper for isolate
+FROM builder AS isolock
+RUN git clone https://github.com/ronalchn/isolock.git
+WORKDIR /isolock
+RUN make
+
+
+# Ruby application
+FROM ruby:2.4.10 AS nztrain
+RUN mkdir -p /var/local/lib/isolate
+COPY --from=isolate /isolate/isolate /usr/local/bin/isolate
+COPY --from=isolock /isolock/bin/isolock /usr/local/bin/isolock
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
+       libmaxminddb-dev \
+       build-essential \
+    && rm -rf /var/lib/apt/lists/*
+COPY ./nztrain /app
+COPY ./config/database.yml ./config/redis.yml /app/config/
+WORKDIR /app
+RUN bundle install -j4
+
+
+CMD ["/bin/bash"]

@@ -1,0 +1,10 @@
+default:
+  host: redis
+  port: 6379
+  password: ""
+production:
+  db: 0
+development:
+  db: 1
+test:
+  db: 2
