@@ -15,14 +15,13 @@ RUN apt-get install -y --no-install-recommends \
 FROM builder AS isolate
 RUN git clone https://github.com/ioi/isolate.git
 WORKDIR /isolate
-RUN git checkout -b build v2.1
+RUN git checkout -b build v1.10.1
 RUN make isolate
-RUN make isolate-cg-keeper
 
 
 # Compile isolock wrapper for isolate
 FROM builder AS isolock
-RUN git clone https://github.com/ronalchn/isolock.git
+RUN git clone https://github.com/NZOI/isolock.git
 WORKDIR /isolock
 RUN make
 
@@ -40,7 +39,6 @@ RUN bundle install -j4
 COPY ./config/database.yml ./config/redis.yml ./config/isolate.yml /app/config/
 COPY ./config/isolate.cf /usr/local/etc/isolate
 COPY --from=isolate /isolate/isolate /isolate/isolate-check-environment /usr/local/bin/
-COPY --from=isolate /isolate/isolate-cg-keeper /usr/local/sbin/
 COPY --from=isolock /isolock/bin/isolock /usr/local/bin/isolock
 
 

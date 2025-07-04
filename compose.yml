@@ -62,7 +62,9 @@ services:
     build:
       context: .
       dockerfile: ContainerFile
+    # NOT FOR PRODUCTION
     privileged: true
+    user: root
     depends_on:
       db:
         condition: service_healthy
@@ -70,7 +72,6 @@ services:
         condition: service_started
     working_dir: /app
     environment:
-      REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
       PGHOST: db
       PGPORT: 5432
@@ -79,6 +80,7 @@ services:
     command: >
       bash -c "
         echo '>> Starting qless worker...' &&
+        mkdir -p /sys/fs/cgroup/etc/environment &&
         bundle exec rake qless:work
       "
 

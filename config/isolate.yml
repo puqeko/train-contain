@@ -1,2 +1,4 @@
-root: /sys/fs/cgroup/
-cgroups: true
+root: ""
+
+# Can't use this until upgrade to cgroupsv2
+cgroups: false
