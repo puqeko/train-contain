@@ -27,7 +27,6 @@ services:
     build:
       context: .
       dockerfile: ContainerFile
-    privileged: true
     depends_on:
       db:
         condition: service_healthy
@@ -37,7 +36,6 @@ services:
       - "3000:80"
     working_dir: /app
     environment:
-      REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
       PGHOST: db
       PGPORT: 5432
@@ -45,16 +43,18 @@ services:
       PGPASSWORD: password
     command: >
       bash -c "
-        # Silence errors about Simple Form
-        rails generate simple_form:install --bootstrap &&
-
-        echo 'Setting up database...' &&
+        echo '>> Setting up database...' &&
         bundle exec rake db:create db:migrate &&
 
-        echo 'Seeding database with dummy data...' &&
-        bundle exec rake db:seed &&
+        echo '>> Checking if database needs seeding...' &&
+        if bundle exec rails runner 'exit(User.exists?(0) ? 0 : 1)' 2>/dev/null; then
+          echo '>> Database already seeded (System user exists), skipping seed...'
+        else
+          echo '>> Database needs seeding, running seed...' &&
+          bundle exec rake db:seed
+        fi &&
 
-        echo 'Starting Rails server...' &&
+        echo '>> Starting Rails server...' &&
         bundle exec rails server -b 0.0.0.0 -p 80
       "
 
