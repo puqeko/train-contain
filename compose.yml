@@ -58,6 +58,30 @@ services:
         bundle exec rails server -b 0.0.0.0 -p 80
       "
 
+  worker:
+    build:
+      context: .
+      dockerfile: ContainerFile
+    privileged: true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: nztrain
+      PGPASSWORD: password
+    command: >
+      bash -c "
+        echo '>> Starting qless worker...' &&
+        bundle exec rake qless:work
+      "
+
 volumes:
   postgres_data:
   redis_data:

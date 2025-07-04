@@ -17,6 +17,7 @@ RUN git clone https://github.com/ioi/isolate.git
 WORKDIR /isolate
 RUN git checkout -b build v2.1
 RUN make isolate
+RUN make isolate-cg-keeper
 
 
 # Compile isolock wrapper for isolate
@@ -28,9 +29,6 @@ RUN make
 
 # Ruby application
 FROM ruby:2.4.10 AS nztrain
-RUN mkdir -p /var/local/lib/isolate
-COPY --from=isolate /isolate/isolate /usr/local/bin/isolate
-COPY --from=isolock /isolock/bin/isolock /usr/local/bin/isolock
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
        libmaxminddb-dev \
@@ -40,6 +38,11 @@ COPY ./nztrain /app
 COPY ./config/database.yml ./config/redis.yml /app/config/
 WORKDIR /app
 RUN bundle install -j4
+COPY ./config/database.yml ./config/redis.yml ./config/isolate.yml /app/config/
+COPY ./config/isolate.cf /usr/local/etc/isolate
+COPY --from=isolate /isolate/isolate /isolate/isolate-check-environment /usr/local/bin/
+COPY --from=isolate /isolate/isolate-cg-keeper /usr/local/sbin/
+COPY --from=isolock /isolock/bin/isolock /usr/local/bin/isolock
 
 
 CMD ["/bin/bash"]
