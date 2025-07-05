@@ -1,5 +1,5 @@
 ## Containerised nztrain
 
 ```
-docker-compose up
+docker-compose up --build
 ```

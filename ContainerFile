@@ -33,9 +33,10 @@ RUN apt-get install -y --no-install-recommends \
        libmaxminddb-dev \
        build-essential \
     && rm -rf /var/lib/apt/lists/*
-COPY ./nztrain /app
+COPY ./nztrain/Gemfile ./nztrain/Gemfile.lock /app/
 WORKDIR /app
 RUN bundle install -j4
+COPY ./nztrain /app
 COPY ./config/database.yml ./config/redis.yml ./config/isolate.yml /app/config/
 COPY ./config/isolate.cf /usr/local/etc/isolate
 COPY --from=isolate /isolate/isolate /isolate/isolate-check-environment /usr/local/bin/
