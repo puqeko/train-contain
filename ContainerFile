@@ -39,6 +39,7 @@ RUN bundle install -j4
 COPY ./nztrain /app
 COPY ./config/database.yml ./config/redis.yml ./config/isolate.yml /app/config/
 COPY ./config/isolate.cf /usr/local/etc/isolate
+COPY ./config/environment.txt /etc/environment
 COPY --from=isolate /isolate/isolate /isolate/isolate-check-environment /usr/local/bin/
 COPY --from=isolock /isolock/bin/isolock /usr/local/bin/isolock
 
