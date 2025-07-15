@@ -1,47 +1,110 @@
 # Temporary container for building dependancies
-FROM debian:buster AS builder
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends \
-       ca-certificates \
-       build-essential \
-       libcap-dev \
-       libsystemd-dev \
-       pkg-config \
-       git \
+FROM ubuntu:xenial AS builder
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    # Isolate and Isolock requirements
+    ca-certificates build-essential libcap-dev libsystemd-dev pkg-config git \
     && rm -rf /var/lib/apt/lists/*
 
 
 # Compile isolate for safe code execution
 FROM builder AS isolate
-RUN git clone https://github.com/ioi/isolate.git
-WORKDIR /isolate
-RUN git checkout -b build v1.10.1
-RUN make isolate
+ARG ISOLATE_GIT_TAG=v1.10.1
+
+RUN git clone https://github.com/ioi/isolate.git \
+    && cd isolate \
+    && git checkout -b build ${ISOLATE_GIT_TAG} \
+    && make isolate
 
 
 # Compile isolock wrapper for isolate
 FROM builder AS isolock
-RUN git clone https://github.com/NZOI/isolock.git
-WORKDIR /isolock
-RUN make
+RUN git clone https://github.com/NZOI/isolock.git \
+    && cd isolock \
+    && make
 
 
-# Ruby application
-FROM ruby:2.4.10 AS nztrain
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends \
-       libmaxminddb-dev \
-       build-essential \
+# Setup ruby application
+FROM ubuntu:xenial AS ruby
+ARG RUBY_VERSION=2.4.10
+ARG RUBY_BUILD_GIT_TAG=v20250610
+ARG BUNDLE_VERSION=2.1.4
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+    # Requirements to get ruby-build tar
+    ca-certificates curl \
+    # Ruby requirements
+    build-essential autoconf libssl-dev libyaml-dev zlib1g-dev libffi-dev libgmp-dev rustc \
+    # Ruby runtime requirements
+    tzdata \
+    # Clean up
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-COPY ./nztrain/Gemfile ./nztrain/Gemfile.lock /app/
+
+# Install same ruby version as in production
+RUN curl -sSL https://github.com/rbenv/ruby-build/archive/refs/tags/${RUBY_BUILD_GIT_TAG}.tar.gz | tar -xzf - \
+    && PREFIX=/usr/local ./ruby-build-*/install.sh \
+    && ruby-build ${RUBY_VERSION} /app/.rubies/ruby-${RUBY_VERSION} \
+    && rm -rf ./ruby-build*
+
+ENV PATH="/app/.rubies/ruby-${RUBY_VERSION}/bin:${PATH}"
+
+
+FROM ruby AS nztrain
+
+# Install same bundle version as in production
+RUN gem install bundler -v ${BUNDLE_VERSION}
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+    # Requirements for train install
+    sudo git build-essential pkg-config libpq-dev \
+    # Clean up
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies and languages
+COPY ./nztrain/script /app/script
+COPY ./nztrain/config /app/config
+
+RUN useradd -ms /bin/bash nztrain \
+    && usermod -aG sudo nztrain \
+    && chown -R nztrain:nztrain /app
+
 WORKDIR /app
-RUN bundle install -j4
-COPY ./nztrain /app
-COPY ./config/database.yml ./config/redis.yml ./config/isolate.yml /app/config/
-COPY ./config/isolate.cf /usr/local/etc/isolate
-COPY ./config/environment.txt /etc/environment
+
+RUN RAILS_ENV=development \
+    USER=nztrain \
+    DATABASE= \
+    TEST_DATABASE= \
+    ISOLATE_ROOT="/" \
+    bash script/install/config.bash --defaults
+
+# TEMP: Trick install script into thinking redis is installed since
+# REDIS_INSTALL=false doesn't seem to work
+COPY ./config/redis-server /usr/local/bin/redis-server
+
+RUN yes | \
+    DATABASE_INSTALL=false \
+    REDIS_INSTALL=false \
+    update=false bash script/install.bash
+
+USER nztrain
+
+# Install ruby app
+COPY --chown=nztrain:nztrain ./nztrain/Gemfile ./nztrain/Gemfile.lock /app/
+RUN bundle install -j"$(grep processor /proc/cpuinfo | wc -l)"
+
+COPY --chown=nztrain:nztrain ./nztrain /app
+
+# Copy over compiled binaries
 COPY --from=isolate /isolate/isolate /isolate/isolate-check-environment /usr/local/bin/
 COPY --from=isolock /isolock/bin/isolock /usr/local/bin/isolock
 
+# Runtime configs
+COPY ./config/database.yml ./config/redis.yml ./config/isolate.yml /app/config/
+COPY ./config/isolate.cf /usr/local/etc/isolate
+COPY ./config/environment.txt /etc/environment
 
 CMD ["/bin/bash"]

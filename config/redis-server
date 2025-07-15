@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "Redis server v=6.2.18 sha=00000000:0 malloc=jemalloc-5.1.0 bits=64 build=2f196328b85da003"

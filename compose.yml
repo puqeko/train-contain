@@ -42,7 +42,7 @@ services:
       PGUSER: nztrain
       PGPASSWORD: password
     command: >
-      bash -c "
+      bash -l -c "
         echo '>> Setting up database...' &&
         bundle exec rake db:create db:migrate &&
 
@@ -78,7 +78,7 @@ services:
       PGUSER: nztrain
       PGPASSWORD: password
     command: >
-      bash -c "
+      bash -l -c "
         echo '>> Starting qless worker...' &&
         mkdir -p /sys/fs/cgroup/etc/environment &&
         bundle exec rake qless:work
