@@ -94,7 +94,7 @@ USER nztrain
 
 # Install ruby app
 COPY --chown=nztrain:nztrain ./nztrain/Gemfile ./nztrain/Gemfile.lock /app/
-RUN bundle install -j"$(grep processor /proc/cpuinfo | wc -l)"
+RUN bundle install -j"$(nproc)"
 
 COPY --chown=nztrain:nztrain ./nztrain /app
 
