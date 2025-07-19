@@ -88,7 +88,9 @@ COPY ./config/redis-server /usr/local/bin/redis-server
 RUN yes | \
     DATABASE_INSTALL=false \
     REDIS_INSTALL=false \
-    update=false bash script/install.bash
+    CI=true \
+    update=false \
+    bash script/install.bash
 
 USER nztrain
 
