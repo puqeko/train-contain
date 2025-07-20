@@ -35,7 +35,7 @@ RUN apt-get update \
     # Requirements to get ruby-build tar
     ca-certificates curl \
     # Ruby requirements
-    build-essential autoconf libssl-dev libyaml-dev zlib1g-dev libffi-dev libgmp-dev rustc \
+    build-essential autoconf libssl-dev libyaml-dev zlib1g-dev libffi-dev libgmp-dev libreadline-dev rustc \
     # Ruby runtime requirements
     tzdata \
     # Clean up
